@@ -8,17 +8,23 @@ extern crate syscall;
 #[macro_use]
 extern crate unix;
 
-use unix::err::OsErr;
+use core::mem;
+use unix::{err::OsErr, file::File};
 
 pub mod pty;
-pub mod termios;
 
-pub trait TtyExt {
+mod private { pub trait Sealed {} }
+
+pub trait TtyExt: private::Sealed {
     fn get_tty_size(&self) -> Result<(ushort, ushort), OsErr>;
     fn set_tty_size(&mut self, rows: ushort, cols: ushort) -> Result<(), OsErr>;
+    fn get_termios(&self) -> Result<Termios, OsErr>;
+    fn set_termios(&mut self, termios: Termios, when: termios::When) -> Result<(), OsErr>;
 }
 
-impl TtyExt for ::unix::file::File {
+impl private::Sealed for File {}
+
+impl TtyExt for File {
     #[inline]
     fn get_tty_size(&self) -> Result<(ushort, ushort), OsErr> { unsafe {
         let mut wsz: ::libc::winsize = ::core::mem::uninitialized();
@@ -33,6 +39,27 @@ impl TtyExt for ::unix::file::File {
         wsz.ws_col = cols;
         esyscall_!(IOCTL, self.fd(), ::libc::TIOCSWINSZ, &wsz as *const _)
     } }
+
+    #[inline]
+    fn get_termios(&self) -> Result<Termios, OsErr> { unsafe {
+        let mut termios = mem::uninitialized();
+        esyscall_!(IOCTL, self.fd(), ::libc::TCGETS, &mut termios as *mut _).map(|()| termios)
+    } }
+
+    #[inline]
+    fn set_termios(&mut self, termios: Termios, when: termios::When) -> Result<(), OsErr> { unsafe {
+        esyscall_!(IOCTL, self.fd(), ::libc::TCSETS as usize + when as usize, &termios as *const _)
+    } }
 }
 
-use ::libc::c_ushort as ushort;
+pub use libc::termios as Termios;
+use libc::c_ushort as ushort;
+
+pub mod termios {
+    #[derive(Debug, Clone, Copy)]
+    pub enum When {
+        Now = 0,
+        Drain = 1,
+        Flush = 2,
+    }
+}
