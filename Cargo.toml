@@ -10,4 +10,4 @@ i-o = "0.4"
 libc = { version = "0.2", default-features = false }
 null-terminated = "0.3"
 syscall = "0.2"
-unix = "0.6"
+unix = "0.6.5"

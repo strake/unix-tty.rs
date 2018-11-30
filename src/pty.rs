@@ -30,6 +30,6 @@ impl PtyExt for File {
     fn pts(&self) -> Result<File, OsErr> {
         let n: ::libc::c_int = 0;
         unsafe { esyscall_!(IOCTL, self.fd(), 0x40045431, &n as *const _) }?;
-        open_at(None, unsafe { Nul::new_unchecked(name(self)?.as_ptr()) }, OpenMode::RdWr | O_CLOEXEC, FileMode::empty())
+        open_at(None, unsafe { Nul::new_unchecked(name(self)?.as_ptr()) }, OpenMode::RdWr | O_CLOEXEC, None)
     }
 }
