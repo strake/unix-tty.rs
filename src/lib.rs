@@ -43,12 +43,20 @@ impl TtyExt for File {
     #[inline]
     fn get_termios(&self) -> Result<Termios, OsErr> { unsafe {
         let mut termios = mem::uninitialized();
-        esyscall_!(IOCTL, self.fd(), ::libc::TCGETS, &mut termios as *mut _).map(|()| termios)
+        #[cfg(target_os = "linux")]
+        const ioctl: usize = ::libc::TCGETS as _;
+        #[cfg(target_os = "freebsd")]
+        const ioctl: usize = ::libc::TIOCGETA as _;
+        esyscall_!(IOCTL, self.fd(), ioctl, &mut termios as *mut _).map(|()| termios)
     } }
 
     #[inline]
     fn set_termios(&mut self, termios: Termios, when: termios::When) -> Result<(), OsErr> { unsafe {
-        esyscall_!(IOCTL, self.fd(), ::libc::TCSETS as usize + when as usize, &termios as *const _)
+        #[cfg(target_os = "linux")]
+        const ioctl: usize = ::libc::TCSETS as _;
+        #[cfg(target_os = "freebsd")]
+        const ioctl: usize = ::libc::TIOCSETA as _;
+        esyscall_!(IOCTL, self.fd(), ioctl + when as usize, &termios as *const _)
     } }
 }
 
